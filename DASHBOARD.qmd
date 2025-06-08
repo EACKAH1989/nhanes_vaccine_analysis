@@ -354,7 +354,7 @@ model <- glm(hepA_vaccine_bin ~ age_group + gender, data = nhanes, family = bino
 
 summary(model)
 
-# Optional: exponentiate coefficients to get odds ratios
+# Exponentiate coefficients to get odds ratios
 exp_coef <- exp(coef(model))
 exp_confint <- exp(confint
                   (model))
@@ -381,7 +381,7 @@ model <- glm(hepB_vaccine_bin ~ age_group + gender, data = nhanes, family = bino
 
 summary(model)
 
-# Optional: exponentiate coefficients to get odds ratios
+#Exponentiate coefficients to get odds ratios
 exp_coef <- exp(coef(model))
 exp_confint <- exp(confint(model))
 
