@@ -1,6 +1,6 @@
 ---
 title: "NHANES VACCINE ANALYSIS"
-name: "Emmanuel Attah Ackah"
+author: "Emmanuel Attah Ackah"
 format: pdf
 editor: visual
 ---
