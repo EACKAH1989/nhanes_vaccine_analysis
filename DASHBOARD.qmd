@@ -78,13 +78,13 @@ library(dplyr)
 nhanes <- nhanes %>%
   mutate(
     hepA_vaccine = case_when(
-      IMQ011 %in% c(1, 2) ~ "Yes",   # if 1 or 2 means Yes
+      IMQ011 %in% c(1, 2) ~ "Yes",   # 1 or 2 means Yes
       IMQ011 == 3 ~ "No",
       IMQ011 == 9 ~ NA_character_,
       TRUE ~ NA_character_
     ),
     hepB_vaccine = case_when(
-      IMQ020 %in% c(1, 2) ~ "Yes",   # if 1 or 2 means Yes
+      IMQ020 %in% c(1, 2) ~ "Yes",   # 1 or 2 means Yes
       IMQ020 == 3 ~ "No",
       IMQ020 == 9 ~ NA_character_,
       TRUE ~ NA_character_
@@ -102,7 +102,7 @@ nhanes <- nhanes %>%
       TRUE ~ NA_character_
     ),
     hpv_doses = case_when(
-      IMQ100 %in% 0:3 ~ as.character(IMQ100), # Number of HPV doses, 0-3 typically
+      IMQ100 %in% 0:3 ~ as.character(IMQ100), # Number of HPV doses, 0-3 
       IMQ100 == 9 ~ NA_character_,
       TRUE ~ NA_character_
     )
