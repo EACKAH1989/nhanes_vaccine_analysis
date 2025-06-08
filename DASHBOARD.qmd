@@ -1,5 +1,6 @@
 ---
-title: "DASHBOARD"
+title: "NHANES VACCINE ANALYSIS"
+name: "Emmanuel Attah Ackah"
 format: pdf
 editor: visual
 ---
