@@ -1,0 +1,392 @@
+---
+title: "DASHBOARD"
+format: pdf
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+install.packages(c("shiny", "tidyverse", "haven", "janitor", "DT"))
+
+```
+
+You can add options to executable code like this
+
+```{r}
+library(tidyverse)
+library(haven)         # for reading NHANES .XPT files
+library(survey)        # for complex survey design
+library(janitor)       # for cleaning
+library(gt)            # for tables
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+library(haven)
+
+# Define file paths
+demo_path <- "/Users/ataka/P_DEMO.xpt.txt"
+imm_path <- "/Users/ataka/P_IMQ.xpt.txt"
+
+# Read the XPT files using file paths
+demo <- read_xpt(demo_path)
+imm <- read_xpt(imm_path)
+
+# Merge the datasets by SEQN
+nhanes <- merge(demo, imm, by = "SEQN")
+
+```
+
+```{r}
+head(demo)
+head(imm)
+head(nhanes)
+#str(nhanes)
+```
+
+```{r}
+library(dplyr)
+
+nhanes <- nhanes %>%
+  mutate(age_group = case_when(
+    RIDAGEYR < 18 ~ "0-17",
+    RIDAGEYR >= 18 & RIDAGEYR <= 39 ~ "18-39",
+    RIDAGEYR >= 40 ~ "40+",
+    TRUE ~ NA_character_
+  ),
+  gender = case_when(
+    RIAGENDR == 1 ~ "Male",
+    RIAGENDR == 2 ~ "Female",
+    TRUE ~ NA_character_
+  ))
+
+```
+
+```{r}
+library(dplyr)
+
+nhanes <- nhanes %>%
+  mutate(
+    hepA_vaccine = case_when(
+      IMQ011 %in% c(1, 2) ~ "Yes",   # if 1 or 2 means Yes
+      IMQ011 == 3 ~ "No",
+      IMQ011 == 9 ~ NA_character_,
+      TRUE ~ NA_character_
+    ),
+    hepB_vaccine = case_when(
+      IMQ020 %in% c(1, 2) ~ "Yes",   # if 1 or 2 means Yes
+      IMQ020 == 3 ~ "No",
+      IMQ020 == 9 ~ NA_character_,
+      TRUE ~ NA_character_
+    ),
+    hpv_vaccine_female = case_when(
+      IMQ060 == 1 ~ "Yes",
+      IMQ060 == 2 ~ "No",
+      IMQ060 == 9 ~ NA_character_,
+      TRUE ~ NA_character_
+    ),
+    hpv_vaccine_male = case_when(
+      IMQ070 == 1 ~ "Yes",
+      IMQ070 == 2 ~ "No",
+      IMQ070 == 9 ~ NA_character_,
+      TRUE ~ NA_character_
+    ),
+    hpv_doses = case_when(
+      IMQ100 %in% 0:3 ~ as.character(IMQ100), # Number of HPV doses, 0-3 typically
+      IMQ100 == 9 ~ NA_character_,
+      TRUE ~ NA_character_
+    )
+  )
+
+```
+
+```{r}
+table(nhanes$hepA_vaccine, useNA = "ifany")
+table(nhanes$hepB_vaccine, useNA = "ifany")
+table(nhanes$hpv_vaccine_female, useNA = "ifany")
+table(nhanes$hpv_vaccine_male, useNA = "ifany")
+table(nhanes$hpv_doses, useNA = "ifany")
+
+```
+
+```{r}
+# Calculate percent vaccinated for Hepatitis A by age group and gender
+hepA_summary <- nhanes %>%
+  group_by(age_group, gender) %>%
+  summarise(
+    total = n(),
+    vaccinated = sum(hepA_vaccine == "Yes", na.rm = TRUE),
+    pct_vaccinated = round((vaccinated / total) * 100, 1)
+  ) %>%
+  arrange(age_group, gender)
+
+print(hepA_summary)
+
+hepB_summary <- nhanes %>%
+  group_by(age_group, gender) %>%
+  summarise(
+    total = n(),
+    vaccinated = sum(hepB_vaccine == "Yes", na.rm = TRUE),
+    pct_vaccinated = round((vaccinated / total) * 100, 1)
+  ) %>%
+  arrange(age_group, gender)
+
+print(hepB_summary)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(hepA_summary, aes(x = age_group, y = pct_vaccinated, fill = gender)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.7), width = 0.6) +
+  geom_text(
+    aes(label = paste0(round(pct_vaccinated, 1), "%")),
+    position = position_dodge(width = 0.7),
+    vjust = -0.3,
+    size = 3.5
+  ) +
+  scale_fill_manual(values = c("Male" = "steelblue", "Female" = "navy")) +
+  labs(
+    title = "Hepatitis A Vaccine Coverage by Age Group and Gender",
+    x = "Age Group",
+    y = "Percent Vaccinated (%)",
+    fill = "Gender"
+  ) +
+  theme_minimal()
+
+ggsave("hepA_vaccine_coverage.png", width = 8, height = 6, dpi = 300)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(hepB_summary, aes(x = age_group, y = pct_vaccinated, fill = gender)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.7), width = 0.6) +
+  geom_text(
+    aes(label = paste0(round(pct_vaccinated, 1), "%")),
+    position = position_dodge(width = 0.7),
+    vjust = -0.3,
+    size = 3.5
+  ) +
+  scale_fill_manual(values = c("Male" = "steelblue", "Female" = "orange")) +
+  labs(
+    title = "Hepatitis B Vaccine Coverage by Age Group and Gender",
+    x = "Age Group",
+    y = "Percent Vaccinated (%)",
+    fill = "Gender"
+  ) +
+  theme_minimal()
+
+ggsave("hepB_vaccine_coverage.png", width = 8, height = 6, dpi = 300)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Female HPV vaccine: percentage with ordering
+hpv_female_df <- nhanes %>%
+  filter(!is.na(hpv_vaccine_female)) %>%
+  count(hpv_vaccine_female) %>%
+  mutate(
+    percent = 100 * n / sum(n),
+    hpv_vaccine_female = factor(hpv_vaccine_female, levels = c("Yes", "No"))
+  )
+
+# Male HPV vaccine: percentage with ordering
+hpv_male_df <- nhanes %>%
+  filter(!is.na(hpv_vaccine_male)) %>%
+  count(hpv_vaccine_male) %>%
+  mutate(
+    percent = 100 * n / sum(n),
+    hpv_vaccine_male = factor(hpv_vaccine_male, levels = c("Yes", "No"))
+  )
+
+# HPV doses: percentage with numeric ordering
+hpv_doses_df <- nhanes %>%
+  filter(!is.na(hpv_doses)) %>%
+  count(hpv_doses) %>%
+  mutate(
+    percent = 100 * n / sum(n),
+    hpv_doses = factor(hpv_doses, levels = sort(unique(as.numeric(hpv_doses))))
+  )
+
+# Plot: Female HPV vaccine
+ggplot(hpv_female_df, aes(x = hpv_vaccine_female, y = percent, fill = hpv_vaccine_female)) +
+  geom_bar(stat = "identity", width = 0.3) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), vjust = -0.3, size = 4) +
+  scale_fill_manual(values = c("Yes" = "steelblue", "No" = "navy")) +
+  labs(
+    title = "HPV Vaccine Received (Females)",
+    x = "HPV Vaccine Status",
+    y = "Percent (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggsave("hpv_female_vaccine.png",  width = 6, height = 4, dpi = 300)
+
+# Plot: Male HPV vaccine
+ggplot(hpv_male_df, aes(x = hpv_vaccine_male, y = percent, fill = hpv_vaccine_male)) +
+  geom_bar(stat = "identity", width = 0.3) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), vjust = -0.3, size = 4) +
+  scale_fill_manual(values = c("Yes" = "steelblue", "No" = "navy")) +
+  labs(
+    title = "HPV Vaccine Received (Males)",
+    x = "HPV Vaccine Status",
+    y = "Percent (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggsave("hpv_male_vaccine.png", width = 6, height = 4, dpi = 300)
+
+# Plot: HPV Doses
+ggplot(hpv_doses_df, aes(x = hpv_doses, y = percent, fill = hpv_doses)) +
+  geom_bar(stat = "identity", width = 0.3) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), vjust = -0.3, size = 4) +
+  scale_fill_manual(values = c("0" = "gray60", "1" = "skyblue", "2" = "steelblue", "3" = "navy")) +
+  labs(
+    title = "Number of HPV Vaccine Doses Received",
+    x = "HPV Doses",
+    y = "Percent (%)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggsave("hpv_doses_distribution.png",  width = 6, height = 4, dpi = 300)
+
+```
+
+```{r}
+hpv_female_age_df <- nhanes %>%
+  filter(RIAGENDR == 2, !is.na(hpv_vaccine_female), !is.na(age_group)) %>%
+  group_by(age_group, hpv_vaccine_female) %>%
+  tally() %>%
+  group_by(age_group) %>%
+  mutate(percent = 100 * n / sum(n)) %>%
+  ungroup()
+
+hpv_male_age_df <- nhanes %>%
+  filter(RIAGENDR == 1, !is.na(hpv_vaccine_male), !is.na(age_group)) %>%
+  group_by(age_group, hpv_vaccine_male) %>%
+  tally() %>%
+  group_by(age_group) %>%
+  mutate(percent = 100 * n / sum(n)) %>%
+  ungroup()
+
+hpv_doses_age_df <- nhanes %>%
+  filter(!is.na(hpv_doses), !is.na(age_group)) %>%
+  group_by(age_group, hpv_doses) %>%
+  tally() %>%
+  group_by(age_group) %>%
+  mutate(percent = 100 * n / sum(n)) %>%
+  ungroup()
+
+ggplot(hpv_female_age_df, aes(x = age_group, y = percent, fill = hpv_vaccine_female)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.7), width = 0.6) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")),
+            position = position_dodge(width = 0.7),
+            vjust = -0.3, size = 3.5) +
+  scale_fill_manual(values = c("Yes" = "steelblue", "No" = "navy")) +
+  labs(
+    title = "HPV Vaccine Coverage by Age Group (Females)",
+    x = "Age Group",
+    y = "Percent Vaccinated",
+    fill = "Vaccine Status"
+  ) +
+  theme_minimal()
+
+ggplot(hpv_male_age_df, aes(x = age_group, y = percent, fill = hpv_vaccine_male)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.7), width = 0.6) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")),
+            position = position_dodge(width = 0.7),
+            vjust = -0.3, size = 3.5) +
+  scale_fill_manual(values = c("Yes" = "steelblue", "No" = "navy")) +
+  labs(
+    title = "HPV Vaccine Coverage by Age Group (Males)",
+    x = "Age Group",
+    y = "Percent Vaccinated",
+    fill = "Vaccine Status"
+  ) +
+  theme_minimal()
+
+ggplot(hpv_doses_age_df, aes(x = age_group, y = percent, fill = hpv_doses)) +
+  geom_bar(stat = "identity", position = "stack", width = 0.6) +
+  geom_text(aes(label = paste0(round(percent, 1), "%")),
+            position = position_stack(vjust = 0.5),
+            size = 3.5) +
+  scale_fill_manual(values = c("0" = "gray60", "1" = "skyblue", "2" = "steelblue", "3" = "blue")) +
+  labs(
+    title = "Distribution of HPV Vaccine Doses by Age Group",
+    x = "Age Group",
+    y = "Percent (%)",
+    fill = "Number of Doses"
+  ) +
+  theme_minimal()
+
+ggsave("hpv_female_age_plot.png",  width = 7, height = 5, dpi = 300)
+ggsave("hpv_male_age_plot.png",  width = 7, height = 5, dpi = 300)
+ggsave("hpv_doses_age_plot.png",  width = 7, height = 5, dpi = 300)
+```
+
+```{r}
+# Convert variables to factors for regression
+nhanes <- nhanes %>%
+  mutate(
+    hepA_vaccine_bin = ifelse(hepA_vaccine == "Yes", 1, 0),
+    age_group = factor(age_group, levels = c("0-17", "18-39", "40+")),
+    gender = factor(gender)
+  )
+
+# Fit logistic regression model
+model <- glm(hepA_vaccine_bin ~ age_group + gender, data = nhanes, family = binomial)
+
+summary(model)
+
+# Optional: exponentiate coefficients to get odds ratios
+exp_coef <- exp(coef(model))
+exp_confint <- exp(confint
+                  (model))
+
+data.frame(
+  OR = exp_coef,
+  LowerCI = exp_confint[, 1],
+  UpperCI = exp_confint[, 2]
+)
+
+```
+
+```{r}
+# Convert variables to factors for regression
+nhanes <- nhanes %>%
+  mutate(
+    hepB_vaccine_bin = ifelse(hepB_vaccine == "Yes", 1, 0),
+    age_group = factor(age_group, levels = c("0-17", "18-39", "40+")),
+    gender = factor(gender)
+  )
+
+# Fit logistic regression model
+model <- glm(hepB_vaccine_bin ~ age_group + gender, data = nhanes, family = binomial)
+
+summary(model)
+
+# Optional: exponentiate coefficients to get odds ratios
+exp_coef <- exp(coef(model))
+exp_confint <- exp(confint(model))
+
+data.frame(
+  OR = exp_coef,
+  LowerCI = exp_confint[, 1],
+  UpperCI = exp_confint[, 2]
+)
+```
